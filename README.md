@@ -1,0 +1,2 @@
+# Automatic-Porfolio
+Personal project for learning purposes of finance and ml in finance
