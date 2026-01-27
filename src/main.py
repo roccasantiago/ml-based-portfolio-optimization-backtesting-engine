@@ -13,7 +13,6 @@ TICKERS = CONFIG['TICKERS']
 START_DATE = CONFIG['START_DATE']
 END_DATE = CONFIG['END_DATE']
 FEATURES = CONFIG['FEATURES']
-INITIAL_INVESTMENT = CONFIG['INITIAL_INVESTMENT']
 BROKER_COMISSION = CONFIG['BROKER_COMISSION']
 SAVE_TO_CSV = CONFIG['SAVE_TO_CSV']
 
@@ -74,7 +73,7 @@ if __name__ == "__main__":
 
         # Graph initialization
         fig = plt.figure(figsize=(15, 16)) 
-        gs = fig.add_gridspec(4, 2, height_ratios=[1.2, 1, 1, 1])
+        gs = fig.add_gridspec(5, 2, height_ratios=[1.2, 1, 1, 1, 1])
     
         # Returns graph
         ax1 = fig.add_subplot(gs[0, :])
@@ -129,7 +128,35 @@ if __name__ == "__main__":
         ax5.set_ylabel("ML Strategy Daily Returns")
         ax5.legend()
         ax5.grid(alpha=0.2)
-    
+        # Piecharts
+        colors = plt.cm.Paired(range(len(TICKERS)))
+
+        ax6 = fig.add_subplot(gs[4, 0])
+        wedges6, texts6 = ax6.pie(weights['ml'].sort_values(), 
+                        startangle=90, 
+                        colors=colors)
+        ax6.set_title("ML Weights")
+
+        ax6.legend(wedges6, TICKERS,
+          title="Tickers",
+          loc="center left",
+          bbox_to_anchor=(1, 0, 0.5, 1)
+        )
+
+        ax7 = fig.add_subplot(gs[4, 1])
+        wedges7, texts7 = ax7.pie(weights['classic'].sort_values(), 
+                        startangle=90, 
+                        colors=colors)
+        ax7.set_title("Classic Model Weights")
+
+        ax7.legend(wedges7, TICKERS,
+          title="Tickers",
+          loc="center left",
+          bbox_to_anchor=(1, 0, 0.5, 1)
+        )
+
+        print(weights)
+        
         plt.tight_layout()
         plt.show()
 
