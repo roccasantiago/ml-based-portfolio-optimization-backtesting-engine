@@ -135,6 +135,7 @@ Once configured, run the main script to start the engine:
 
 ```bash
 python main.py
+```
 
 ---
 ## Code Structure
