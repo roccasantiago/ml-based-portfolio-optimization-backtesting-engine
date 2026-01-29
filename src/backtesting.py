@@ -3,7 +3,7 @@ from ingestion import pipeline_preprocess
 from model import get_ml_expected_returns, get_baseline_expected_returns
 from optimization import optimize_portfolio, get_robust_covariance
 
-def run_backtest_pipeline(tickers, start_date, end_date, features, freq='ME', fee=0.001, save_to_csv = False):
+def run_backtest_pipeline(tickers, start_date, end_date, features, freq='ME', fee=0.001, save_to_csv = False, device = 'cpu'):
     """
     Backtesting Walk-Forward: ML vs Baseline
     """
@@ -35,7 +35,8 @@ def run_backtest_pipeline(tickers, start_date, end_date, features, freq='ME', fe
         train_df = df_long[df_long.index <= t_current]
         hist_prices = df_prices[df_prices.index <= t_current]
 
-        if len(hist_prices) < 60: 
+        if len(hist_prices) < 20: 
+            print(f"Skipping {t_current.date()}: Insufficient history ({len(hist_prices)}/20 days)")
             continue
 
         try:
@@ -43,18 +44,34 @@ def run_backtest_pipeline(tickers, start_date, end_date, features, freq='ME', fe
             S = get_robust_covariance(hist_prices)
             
             # ml
-            mu_ml_daily = get_ml_expected_returns(train_df, features)
+            mu_ml_daily = get_ml_expected_returns(train_df, features, device)
             mu_ml_annual = mu_ml_daily * 252 
-            w_ml = pd.Series(optimize_portfolio(mu_ml_annual, S, target="max_sharpe")).reindex(df_prices.columns).fillna(0)
+            common_ml = S.index.intersection(mu_ml_annual.index)
+
+            if len(common_ml)>0:
+                S_ml = S.loc[common_ml, common_ml]
+                mu_ml_aligned = mu_ml_annual.loc[common_ml]
+                w_ml_raw = optimize_portfolio(mu_ml_aligned, S_ml)
+                w_ml = pd.Series(w_ml_raw).reindex(df_prices.columns).fillna(0)
+            else:
+                w_ml = pd.Series(0, index=df_prices.columns)
             
             # baseline
             mu_classic = get_baseline_expected_returns(hist_prices) 
-            w_classic = pd.Series(optimize_portfolio(mu_classic, S, target="max_sharpe")).reindex(df_prices.columns).fillna(0)
+            common_cl = S.index.intersection(mu_classic.index)
+            
+            if len(common_cl) > 0:
+                S_cl = S.loc[common_cl, common_cl]
+                mu_cl_aligned = mu_classic.loc[common_cl]
+                w_classic_raw = optimize_portfolio(mu_cl_aligned, S_cl)
+                w_classic = pd.Series(w_classic_raw).reindex(df_prices.columns).fillna(0)
+            else:
+                 w_classic = pd.Series(0, index=df_prices.columns)
 
             weights = pd.concat([w_ml, w_classic], axis = 1,keys = ['ml','classic'])
 
             # returns and Costs
-            future_returns = df_prices.loc[t_current:t_next].pct_change().dropna()
+            future_returns = df_prices.loc[t_current:t_next].ffill().pct_change(fill_method=None).dropna()
             
             if not future_returns.empty:
                 # gross returns

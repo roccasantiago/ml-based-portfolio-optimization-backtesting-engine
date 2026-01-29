@@ -3,6 +3,7 @@ import numpy as np
 import yfinance as yf
 import pandas_ta as ta
 from datetime import datetime
+import os
 
 def get_financial_data(tickers, start_date, end_date):
     """
@@ -30,8 +31,8 @@ def clean_outliers(data, sigma_threshold=3):
     """
     Filters outliers
     """
-    #Z value
-    returns = data['adj_close'].pct_change()
+    # Z value
+    returns = data['adj_close'].pct_change(fill_method=None) 
     mu = returns.mean()
     sigma = returns.std()
     
@@ -64,9 +65,24 @@ def pipeline_preprocess(tickers, start_date, end_date, save_to_csv=False):
 
     for ticker in tickers:
         asset = raw_data[raw_data['ticker'] == ticker].copy()
+
+        if asset.empty:
+            print(f"Skipping {ticker}: No data found.")
+            continue
+        
+        cols_to_numeric = ['adj_close', 'high', 'low', 'open', 'close', 'volume']
+        for col in cols_to_numeric:
+            if col in asset.columns:
+                asset[col] = pd.to_numeric(asset[col], errors='coerce')
+        
+        asset = asset.dropna(subset=['adj_close'])
+        
+        if len(asset) < 30:
+            print(f"Skipping {ticker}: Insufficient data points ({len(asset)}).")
+            continue
+
         asset.set_index('date', inplace=True)
         asset.sort_index(inplace=True)
-
         asset = clean_outliers(asset)
 
         #get features
@@ -85,11 +101,20 @@ def pipeline_preprocess(tickers, start_date, end_date, save_to_csv=False):
         asset['vix_vol'] = asset['vix'].pct_change().rolling(10).std()
         
         asset = asset.dropna()
-        processed_list.append(asset)
+
+        if not asset.empty:
+            processed_list.append(asset)
+
+    if not processed_list:
+        print("ERROR: No assets processed correctly.")
+        return pd.DataFrame()    
     
     final_data = pd.concat(processed_list)
+    
     if save_to_csv:
+        os.makedirs("data", exist_ok=True)
         now = datetime.now()
         date_str = now.strftime(r"%Y-%m-%d_%H-%M")
-        final_data.to_csv(fr'data\dataset{date_str}.csv')
+        file_path = os.path.join("data", f"dataset_{date_str}.csv")
+        final_data.to_csv(file_path)
     return final_data

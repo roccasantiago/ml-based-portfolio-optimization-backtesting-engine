@@ -7,20 +7,16 @@ def get_robust_covariance(price_data):
     """
     return risk_models.CovarianceShrinkage(price_data).ledoit_wolf()
 
-def optimize_portfolio(expected_returns, cov_matrix, target="max_sharpe"):
+def optimize_portfolio(expected_returns, cov_matrix):
     #Markowitz (its a qudratic problem)
     ef = EfficientFrontier(expected_returns, cov_matrix)
-    
-    #possibility to use L2 and add constrains (bibliography recommendation .2 < w <  .3 )
-    # L2
-    ef.add_objective(objective_functions.L2_reg, gamma=0.1)
-    # for every asset the weight asigned must be below .3
-    #ef.add_constraint(lambda w: w <= 0.30)
-    
-    if target == "min_vol":
-        ef.min_volatility()
-    elif target == "max_sharpe":
+
+    try:
+        #try to maximize max sharpe rate if thea assets get the risk_free_rate
         ef.max_sharpe(risk_free_rate=0.02)
+    except:
+        print("Optimization Warning: Falling back to Min Volatility")
+        ef.min_volatility()
         
     return ef.clean_weights()
 

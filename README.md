@@ -46,20 +46,6 @@ Where:
 
 ---
 
-### 2. Robust Covariance Estimation
-To avoid conditioning issues in the covariance matrix $\Sigma$ common when the number of assets **$N$** is large relative to the number of observations **$T$** we use **Ledoit-Wolf shrinkage**:
-
-$$\hat{\Sigma}_{LW} = (1 - \alpha)S + \alpha F$$
-
-**Where:**
-* **$S$**: The Sample Covariance Matrix (the raw empirical covariance).
-* **$F$**: The "Shrinkage Target" (a structured matrix where all pairwise correlations are equal to the average sample correlation).
-* **$\alpha$**: The shrinkage intensity (a parameter between 0 and 1 that balances $S$ and $F$ to minimize Mean Squared Error).
-
-
-
----
-
 ### 3. Machine Learning (XGBoost)
 Unlike linear models, XGBoost captures non-linear relationships between technical indicators (RSI, Momentum, Volatility) and future returns. 
 
@@ -80,6 +66,7 @@ The workflow is divided into sequential modules:
 
 ### 1. Ingestion and Preprocessing (`ingestion.py`)
 * **Sources:** Yahoo Finance data (`yfinance`).
+* **Warmup Period:** Data is downloaded with a **6 month buffer** prior to the simulation start date. This ensures that all rolling technical indicators (e.g., SMA, RSI) are fully initialized and valid for the first trading day.
 * **Cleaning:** Outlier filtering using a $3\sigma$ threshold (Z-score) to prevent "black swan" events from distorting training.
 * **Macro Variables:** Inclusion of the Fear Index (**VIX**) and Treasury Bonds (**TNX**) to provide global market context.
 
@@ -91,34 +78,36 @@ Technical indicators are calculated to feed the model:
 * **Oscillators:** RSI (Relative Strength Index).
 
 ### 3. Modeling (`model.py`)
-* **XGBoost Regressor** is utilized.
-* **Cross-Validation:** `GridSearchCV` is implemented with temporal validation (Time Series Split implicit in the design) to optimize hyperparameters (`max_depth`, `learning_rate`, `n_estimators`).
-* **Target:** `log_ret.shift(-1)`.
+* **XGBoost Regressor:** Utilizes a Gradient Boosting model with fixed hyperparameters optimized for financial time series (`n_estimators=200`, `learning_rate=0.05`, `max_depth=4`).
+* **Hardware Acceleration:** Supports GPU acceleration (`device='cuda'`) for faster training, automatically switching to `tree_method='hist'` when enabled.
+* **Target:** `log_ret.shift(-1)` (Predicting next day's return).
 
 ### 4. Optimization (`optimization.py`)
 * Uses the `PyPortfolioOpt` library.
-* **L2 Regularization** ($\gamma=0.1$) is applied to the objective function to avoid "corner solutions" (where the optimizer assigns 100% to a single asset) and to diversify risk.
+* **Objective Function:** Maximizes the **Sharpe Ratio** (assuming a risk-free rate of 2%) to find the optimal risk-adjusted return on the Efficient Frontier.
+* **Fallback Mechanism:** If the Sharpe maximization fails (due to solver issues or non-convexity), the system automatically defaults to a **Minimum Volatility** portfolio to ensure stability.
 
 ### 5. Walk-Forward Backtesting (`backtesting.py`)
 Realistic simulation that progresses window by window (monthly):
 1.  Trains the model with data up to $t$.
 2.  Optimizes weights for $t+1$.
 3.  Calculates real returns in period $t+1$.
-4.  Deducts **broker commissions** (0.1% per rebalance).
+4.  Deducts **broker commissions** (default 0.1% per rebalance).
 
 ---
 
 ## Installation & Usage
 
-1. **Clone & Setup:**
+### 1. **Clone & Setup:**
    ```
    git clone https://github.com/RoccaSantiago/Automatic-Porfolio.git
    cd portfolio-optimization
    python -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
-    ```
-## 2. Configuration (`config.py`)
+ ```
+
+### 2. **Configuration (`config.py`)**
 
 Before running the engine, update the `config.py` file to define your execution parameters:
 
@@ -126,7 +115,7 @@ Before running the engine, update the `config.py` file to define your execution 
 * **Timeframe:** Select the start and end dates for data ingestion.
 * **Feature Engineering:** Choose the indicators for the ML model. Available options include:
     * `rsi`, `atr`, `mom_5`, `mom_21`, `sma_dist`, `vix`, `tnx`, `vix_vol`.
-* **Trading Costs:** Input the broker commission fee.
+* **Compute Device:** Set `'DEVICE': 'cuda'` to enable GPU training, or `'cpu'` for standard execution.
 * **Output Settings:** Choose whether to save the generated dashboard or the processed dataset.
 
 ## 3. Execution
@@ -148,4 +137,5 @@ python main.py
 ├── backtesting.py      # Walk-Forward simulation engine
 └── main.py             # Execution and results visualization
 ```
+
 
