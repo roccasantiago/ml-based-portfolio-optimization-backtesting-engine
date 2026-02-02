@@ -10,6 +10,7 @@ The system performs a complete cycle: data ingestion, statistical cleaning, feat
 - [Methodology and Pipeline](#methodology-and-pipeline)
 - [Installation & Usage](#installation--usage)
 - [Code Structure](#code-structure)
+- [Examples](#examples)
 
 ---
 
@@ -137,5 +138,18 @@ python main.py
 ├── backtesting.py      # Walk-Forward simulation engine
 └── main.py             # Execution and results visualization
 ```
+
+---
+
+## Examples
+
+<img width="4470" height="4799" alt="dashboard2026-01-28_21-47" src="https://github.com/user-attachments/assets/1eae7c62-9385-4f50-8956-67ef50f06282" />
+
+<img width="4470" height="4788" alt="dashboard2026-01-28_21-19" src="https://github.com/user-attachments/assets/48f00f12-be0f-401b-9631-1bc6b09ae2ac" />
+
+<img width="4470" height="4799" alt="dashboard2026-01-28_21-43" src="https://github.com/user-attachments/assets/79a3faee-5bc2-4ca5-8a67-518f3960e55c" />
+
+<img width="4471" height="4796" alt="dashboard2026-01-28_21-10" src="https://github.com/user-attachments/assets/2a574289-937c-45b4-b286-d467255e4c15" />
+
 
 
